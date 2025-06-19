@@ -12,7 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -20,8 +21,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install dependencies
-        run: |
-          pip install selenium webdriver-manager
+        run: pip install selenium webdriver-manager
 
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
@@ -32,5 +32,5 @@ jobs:
         env:
           GMAIL_EMAIL: ${{ secrets.GMAIL_EMAIL }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          CHROME_BINARY: /usr/bin/google-chrome
+          CHROME_BINARY: /usr/bin/google-chrome-stable
         run: python netravati_slot_checker.py
