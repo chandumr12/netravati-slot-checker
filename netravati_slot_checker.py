@@ -6,6 +6,7 @@ from datetime import datetime
 from email.mime.text import MIMEText
 
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
@@ -21,12 +22,10 @@ CHROME_BINARY = os.environ.get("CHROME_BINARY", "/usr/bin/chromium-browser")
 CHROME_DRIVER = os.environ.get("CHROME_DRIVER", "/usr/bin/chromedriver")
 
 def send_email(subject: str, body: str):
-    """Send an email using Gmail SMTP."""
     msg = MIMEText(body)
     msg['Subject'] = subject
     msg['From']    = SENDER_EMAIL
     msg['To']      = RECEIVER_EMAIL
-
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(SENDER_EMAIL, APP_PASSWORD)
         server.send_message(msg)
@@ -39,11 +38,10 @@ def check_availability():
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
 
-    driver = webdriver.Chrome(
-        executable_path=CHROME_DRIVER,
-        options=chrome_options
-    )
-    wait = WebDriverWait(driver, 15)
+    # Use Service instead of executable_path
+    service = Service(CHROME_DRIVER)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    wait   = WebDriverWait(driver, 15)
 
     try:
         driver.get("https://aranyavihaara.karnataka.gov.in")
@@ -77,21 +75,18 @@ def check_availability():
         print("🔍 Check Availability clicked")
 
         # 5) Parse slot counts
-        time.sleep(3)  # wait for results to render
+        time.sleep(3)
         slots = driver.find_elements(By.CLASS_NAME, "available_text")
 
-        total_available = 0
-        total_capacity  = 0
+        total_available = total_capacity = 0
         for slot in slots:
-            text = slot.text.strip()  # e.g. "0/300 ಲಭ್ಯವಿದೆ"
+            text = slot.text.strip()
             m = re.search(r'(\d+)\s*/\s*(\d+)', text)
             if m:
-                available = int(m.group(1))
-                capacity  = int(m.group(2))
-                total_available += available
-                total_capacity  += capacity
+                total_available += int(m.group(1))
+                total_capacity  += int(m.group(2))
 
-        # 6) Build email content
+        # 6) Build email
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         if total_available > 0:
             subject = f"🎉 Slots Available: {total_available}/{total_capacity}"
@@ -110,7 +105,6 @@ def check_availability():
                 f"Link: https://aranyavihaara.karnataka.gov.in"
             )
 
-        # 7) Send notification email
         send_email(subject, body)
         print(f"✉️ Email sent: {subject}")
 
