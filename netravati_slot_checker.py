@@ -1,3 +1,4 @@
+import os
 import re
 import time
 import smtplib
@@ -10,13 +11,17 @@ from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
-# === Email Configuration ===
-SENDER_EMAIL   = "chandumr999@gmail.com"
-APP_PASSWORD   = "rbynkxvvegaucffy"
-RECEIVER_EMAIL = "chandumr999@gmail.com"
+# === Credentials from GitHub Actions Secrets ===
+SENDER_EMAIL   = os.environ["GMAIL_EMAIL"]
+APP_PASSWORD   = os.environ["GMAIL_APP_PASSWORD"]
+RECEIVER_EMAIL = SENDER_EMAIL
+
+# === Chrome paths from GitHub Actions environment ===
+CHROME_BINARY = os.environ.get("CHROME_BINARY", "/usr/bin/chromium-browser")
+CHROME_DRIVER = os.environ.get("CHROME_DRIVER", "/usr/bin/chromedriver")
 
 def send_email(subject: str, body: str):
-    """Generic helper to send an email."""
+    """Send an email using Gmail SMTP."""
     msg = MIMEText(body)
     msg['Subject'] = subject
     msg['From']    = SENDER_EMAIL
@@ -27,30 +32,34 @@ def send_email(subject: str, body: str):
         server.send_message(msg)
 
 def check_availability():
-    # 1) Setup ChromeDriver
+    # Configure headless Chromium
     chrome_options = Options()
-    # chrome_options.add_argument("--headless")    # uncomment for headless
+    chrome_options.binary_location = CHROME_BINARY
+    chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
 
-    driver = webdriver.Chrome(options=chrome_options)
-    wait   = WebDriverWait(driver, 15)
+    driver = webdriver.Chrome(
+        executable_path=CHROME_DRIVER,
+        options=chrome_options
+    )
+    wait = WebDriverWait(driver, 15)
 
     try:
         driver.get("https://aranyavihaara.karnataka.gov.in")
         print("🌐 Opened homepage")
 
-        # 2) Select District
+        # 1) Select District (ಚಿಕ್ಕಮಗಳೂರು)
         dd = wait.until(EC.presence_of_element_located((By.ID, "district")))
         Select(dd).select_by_visible_text("ಚಿಕ್ಕಮಗಳೂರು")
         print("✅ District selected")
 
-        # 3) Select Trek (value=113 → ನೇತ್ರಾವತಿ ಚಾರಣ)
+        # 2) Select Trek by value (113 = ನೇತ್ರಾವತಿ ಚಾರಣ)
         td = wait.until(EC.element_to_be_clickable((By.ID, "trek")))
         Select(td).select_by_value("113")
         print("✅ Trek selected")
 
-        # 4) Pick Date
+        # 3) Open calendar and pick date “28”
         date_input = wait.until(EC.element_to_be_clickable((By.ID, "check_in")))
         date_input.click()
         print("📅 Calendar opened")
@@ -62,19 +71,19 @@ def check_availability():
         day_cell.click()
         print("✅ Date picked")
 
-        # 5) Click “Check Availability”
+        # 4) Click “Check Availability”
         check_btn = wait.until(EC.element_to_be_clickable((By.ID, "check_avail")))
         check_btn.click()
         print("🔍 Check Availability clicked")
 
-        # 6) Parse slot counts
-        time.sleep(3)  # wait for results
+        # 5) Parse slot counts
+        time.sleep(3)  # wait for results to render
         slots = driver.find_elements(By.CLASS_NAME, "available_text")
 
         total_available = 0
         total_capacity  = 0
         for slot in slots:
-            text = slot.text.strip()                # e.g. "0/300 ಲಭ್ಯವಿದೆ"
+            text = slot.text.strip()  # e.g. "0/300 ಲಭ್ಯವಿದೆ"
             m = re.search(r'(\d+)\s*/\s*(\d+)', text)
             if m:
                 available = int(m.group(1))
@@ -82,7 +91,7 @@ def check_availability():
                 total_available += available
                 total_capacity  += capacity
 
-        # 7) Build and send the email
+        # 6) Build email content
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         if total_available > 0:
             subject = f"🎉 Slots Available: {total_available}/{total_capacity}"
@@ -101,6 +110,7 @@ def check_availability():
                 f"Link: https://aranyavihaara.karnataka.gov.in"
             )
 
+        # 7) Send notification email
         send_email(subject, body)
         print(f"✉️ Email sent: {subject}")
 
