@@ -8,27 +8,31 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      - name: Install Chromium & ChromeDriver
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser chromium-chromedriver
-          pip install selenium
+      - name: Install Selenium
+        run: pip install selenium
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - name: Setup ChromeDriver
+        uses: nanasess/setup-chromedriver@v1
+        with:
+          chromedriver-version: stable
 
       - name: Run slot checker
         env:
           GMAIL_EMAIL: ${{ secrets.GMAIL_EMAIL }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          CHROME_BINARY: /usr/bin/chromium-browser
+          CHROME_BINARY: /usr/bin/google-chrome
           CHROME_DRIVER:  /usr/bin/chromedriver
         run: |
           python netravati_slot_checker.py
