@@ -34,14 +34,17 @@ def check_availability():
     # Configure headless Chromium
     chrome_options = Options()
     chrome_options.binary_location = CHROME_BINARY
-    chrome_options.add_argument("--headless")
+    # Use the new headless mode and disable shared memory to avoid CI issues
+    chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--remote-allow-origins=*")
 
-    # Use Service instead of executable_path
-    service = Service(CHROME_DRIVER)
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    wait   = WebDriverWait(driver, 15)
+    # Increase startup timeout in CI
+    service = Service(CHROME_DRIVER, start_timeout=120)
+    driver  = webdriver.Chrome(service=service, options=chrome_options)
+    wait    = WebDriverWait(driver, 15)
 
     try:
         driver.get("https://aranyavihaara.karnataka.gov.in")
@@ -77,16 +80,14 @@ def check_availability():
         # 5) Parse slot counts
         time.sleep(3)
         slots = driver.find_elements(By.CLASS_NAME, "available_text")
-
         total_available = total_capacity = 0
         for slot in slots:
-            text = slot.text.strip()
-            m = re.search(r'(\d+)\s*/\s*(\d+)', text)
+            m = re.search(r'(\d+)\s*/\s*(\d+)', slot.text.strip())
             if m:
                 total_available += int(m.group(1))
                 total_capacity  += int(m.group(2))
 
-        # 6) Build email
+        # 6) Build and send email
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         if total_available > 0:
             subject = f"🎉 Slots Available: {total_available}/{total_capacity}"
@@ -110,7 +111,6 @@ def check_availability():
 
     except Exception as e:
         print(f"❌ Error: {type(e).__name__} – {e}")
-
     finally:
         driver.quit()
 
