@@ -12,11 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
@@ -30,7 +28,6 @@ jobs:
 
       - name: Run slot checker
         env:
-          GMAIL_EMAIL: ${{ secrets.GMAIL_EMAIL }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          CHROME_BINARY: /usr/bin/google-chrome-stable
+          GMAIL_EMAIL:       ${{ secrets.GMAIL_EMAIL }}
+          GMAIL_APP_PASSWORD:${{ secrets.GMAIL_APP_PASSWORD }}
         run: python netravati_slot_checker.py
